@@ -1,1 +1,1 @@
-autocrop = 1.3.0
+autocrop == 1.3.0
