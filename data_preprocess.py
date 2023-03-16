@@ -3,6 +3,7 @@ from autocrop import Cropper
 import os
 import matplotlib.pyplot as plt
 import shutil
+import torchvision.transforms
 
 class DataProcess:
     """preprocess images to 224x224 resolution
@@ -107,11 +108,24 @@ class DataProcess:
                 else:
                     shutil.copy2("./lfw_funneled/" + nonsmoking_repo + "/" + nonsmoking, "./discarded_data/discarded_data_nonsmoking/discarded/")
 
-def main():
-    # raise Exception("\nAre You Sure To Run It?\nIt overwrites cleaned_data folder")
-    d = DataProcess()
-    # d.image_resizer_nonsmoking2()
+    def image_reziser_preprocessed(self):
+        """resize preprocessed data. 
+        """
+        transform = torchvision.transforms.Resize(size=(224, 224))
+        count = 0
+        for smoking in os.listdir("./manual_not_processed"):
+            img = Image.open("./manual_not_processed/" + smoking)
+            img = transform(img)
+            # img = Image.fromarray(img)
+            img.save("./cleaned_data/manual_clean_smoking/" + "msmoking" + str(count) + self.clean_img_type)
+            count += 1
 
-if __name__ == "__main__":
-    main()
+
+
+# raise Exception("\nAre You Sure To Run It?\nIt overwrites cleaned_data folder")
+d = DataProcess()
+# d.image_resizer_nonsmoking2()
+# d.image_reziser_preprocessed()
+
+
 
