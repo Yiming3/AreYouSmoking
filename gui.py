@@ -100,6 +100,7 @@ class GUI(customtkinter.CTk):
 
         curr_img = customtkinter.CTkImage(curr_img, size=(w, h))
         self.home_frame_large_image_label.configure(image=curr_img)
+        self.model_connect(self.filepath)
     
     def get_image_path(self):
         return self.filepath
@@ -110,7 +111,7 @@ class GUI(customtkinter.CTk):
         else:
             self.home_frame_large_image_label.configure(text="Non-Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="black")
 
-    def model_connect(self):
+    def model_connect(self, filepath):
         # --------------------------------------------
         # put your code below
         # to get the file path -> self.filepath or call self.get_image_path()
