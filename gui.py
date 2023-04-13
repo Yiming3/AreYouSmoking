@@ -21,6 +21,7 @@ class GUI(customtkinter.CTk):
         self.upload_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "upload.png")), size=(20, 20))
         self.home_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "home_dark.png")),
                                                  dark_image=Image.open(os.path.join(image_path, "home_light.png")), size=(20, 20))
+        self.camera_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "camera.png")), size=(20, 17))
         # create navigation frame
         self.navigation_frame = customtkinter.CTkFrame(self, corner_radius=0)
         self.navigation_frame.grid(row=0, column=0, sticky="nsew")
@@ -37,7 +38,7 @@ class GUI(customtkinter.CTk):
 
         self.camera_frame_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Camera",
                                                       fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
-                                                      image=self.home_image, anchor="w", command=self.video_frame_button_event)
+                                                      image=self.camera_image, anchor="w", command=self.video_frame_button_event)
         self.camera_frame_button.grid(row=2, column=0, sticky="ew")
 
         # create home frame
@@ -117,10 +118,18 @@ class GUI(customtkinter.CTk):
         return self.filepath
 
     def smoking_detected(self, result: bool):
-        if (result):
-            self.image_label.configure(text="Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="red")
-        else:
-            self.image_label.configure(text="Non-Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="black")
+
+        if (self.cap.isOpened()):
+            # camera is on so update camera frame
+            if (result):
+                self.video_label.configure(text="Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="red")
+            else:
+                self.video_label.configure(text="Non-Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="black")
+        else: 
+            if (result):
+                self.image_label.configure(text="Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="red")
+            else:
+                self.image_label.configure(text="Non-Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="black")
 
     def model_connect(self, filepath):
         # --------------------------------------------
@@ -147,6 +156,7 @@ class GUI(customtkinter.CTk):
             w, h = self.image_dim(w, h)
             ctk_img = customtkinter.CTkImage(img, size=(w, h))
             self.video_label.configure(image=ctk_img)
+            self.model_connect("1")
             self.video_label.after(20, self.camera)
 
 if __name__ == "__main__":
