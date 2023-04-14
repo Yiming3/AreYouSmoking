@@ -3,6 +3,17 @@ import customtkinter
 import os
 from PIL import Image
 import cv2
+import numpy as np
+import model_test
+import torch
+import joblib
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.transforms as transforms
+import torchvision
+from facenet_pytorch import MTCNN
+import torch
+from PIL import Image, ImageDraw
 
 class GUI(customtkinter.CTk):
     def __init__(self):
@@ -60,9 +71,11 @@ class GUI(customtkinter.CTk):
                                                   height=300, width=500, compound="bottom",
                                                   font=customtkinter.CTkFont(size=15, weight="bold"), text_color="black")
         self.video_label.grid(row=0, column=0, padx=20, pady=10)
-        
+        self.cap = None
         # select default frame
         self.select_frame_by_name("home")
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.mtcnn = MTCNN(keep_all=True, device=device)
 
     def select_frame_by_name(self, name):
         # set button color for selected button
@@ -98,10 +111,10 @@ class GUI(customtkinter.CTk):
         w, h = curr_img.size
         w, h = self.image_dim(w, h)
 
-        curr_img = customtkinter.CTkImage(curr_img, size=(w, h))
-        self.image_label.configure(image=curr_img)
-        self.model_connect(self.filepath)
-    
+        disp_img = self.model_connect(curr_img)
+        disp_img = customtkinter.CTkImage(disp_img, size=(w, h))
+        self.image_label.configure(image=disp_img)
+        
     def image_dim(self, w, h):
         # 40 is x_padding * 2 #30 is upload button height, 40 is y_padding * 2, 15 is font height
         windows_w, windows_h = (520-40, 450-30-40-15-15) 
@@ -119,31 +132,54 @@ class GUI(customtkinter.CTk):
 
     def smoking_detected(self, result: bool):
 
-        if (self.cap.isOpened()):
+        if (self.cap == None or self.cap.isOpened() == False):
             # camera is on so update camera frame
-            if (result):
-                self.video_label.configure(text="Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="red")
-            else:
-                self.video_label.configure(text="Non-Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="black")
-        else: 
             if (result):
                 self.image_label.configure(text="Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="red")
             else:
                 self.image_label.configure(text="Non-Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="black")
+        else:
+            if (result):
+                self.video_label.configure(text="Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="red")
+            else:
+                self.video_label.configure(text="Non-Smoking", font=customtkinter.CTkFont(size=15, weight="bold"), text_color="black")
+            
+    def model_connect(self, frame):
+        
+        # Detect faces
+        boxes, _ = self.mtcnn.detect(frame)
+        if (boxes is None):
+            self.smoking_detected(False)
+            return frame
+        # Draw faces
+        for box in boxes:
+            frame_draw = frame.copy()
+            draw = ImageDraw.Draw(frame_draw)
+            for box in boxes:
+                draw.rectangle(box.tolist(), outline=(255, 0, 0), width=6)
+            x = box[2] - box[0]
+            y = box[3] - box[1]
+            max_len = max(x, y) * 1.2
+            box[0] -= max_len*0.1
+            box[1] -= max_len*0.1
+            box[2] = box[0] + max_len
+            box[3] = box[1] + max_len  
 
-    def model_connect(self, filepath):
-        # --------------------------------------------
-        # put your code below
-        # to get the file path -> self.filepath or call self.get_image_path()
+        # Add to frame list
+        frame = frame.crop(box=box)
+        frame = frame.resize((224, 224), Image.BILINEAR)
 
-
+        transform = transforms.Compose([transforms.PILToTensor()]) 
+        dataset = [[transform(frame).float(), torch.tensor(0.)]]
+        criterion = nn.BCEWithLogitsLoss()
+        loader = torch.utils.data.DataLoader(dataset, batch_size=len(dataset), num_workers=0)
 
         # judge smoking here, put result in is_smoking
-        is_smoking = True
-        # put your code above
-        # --------------------------------------------
+        print(model_test.classifier.evaluate(loader, criterion))
+        is_smoking = bool(model_test.classifier.evaluate(loader, criterion)[0])
 
         self.smoking_detected(is_smoking)
+        return frame_draw
 
     def camera(self):
         ret, frame = self.cap.read()
@@ -154,11 +190,16 @@ class GUI(customtkinter.CTk):
             img = Image.fromarray(frame)
             w, h = img.size
             w, h = self.image_dim(w, h)
-            ctk_img = customtkinter.CTkImage(img, size=(w, h))
-            self.video_label.configure(image=ctk_img)
-            self.model_connect("1")
-            self.video_label.after(20, self.camera)
+
+            disp_img = self.model_connect(img)
+            disp_img = customtkinter.CTkImage(disp_img, size=(w, h))
+            self.video_label.configure(image=disp_img)
+
+            # self.model_connect(img)
+            self.video_label.after(50, self.camera)
+            
 
 if __name__ == "__main__":
+
     app = GUI()
     app.mainloop()
